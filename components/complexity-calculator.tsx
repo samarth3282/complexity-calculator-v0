@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Progress } from "@/components/ui/progress"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ComplexityChart } from "@/components/complexity-chart"
 import { ComplexityExamples } from "@/components/complexity-examples"
-import { Calculator, Code, BarChart3, BookOpen } from "lucide-react"
+import { Calculator, Code, BarChart3, BookOpen, Download, Zap, AlertTriangle, CheckCircle, FileText, Activity } from "lucide-react"
+import { ComprehensiveAnalysisResult } from "@/lib/cpp-complexity-analyzer"
 
 interface ComplexityResult {
   timeComplexity: string
@@ -17,23 +20,198 @@ interface ComplexityResult {
   category: "excellent" | "good" | "fair" | "poor" | "terrible"
 }
 
+interface AnalysisProgress {
+  step: string
+  progress: number
+  isComplete: boolean
+}
+
 export function ComplexityCalculator() {
   const [code, setCode] = useState("")
-  const [result, setResult] = useState<ComplexityResult | null>(null)
+  const [result, setResult] = useState<ComprehensiveAnalysisResult | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisProgress, setAnalysisProgress] = useState<AnalysisProgress[]>([])
+  const [analysisMode, setAnalysisMode] = useState<'comprehensive' | 'quick'>('comprehensive')
+  const [error, setError] = useState<string | null>(null)
 
   const analyzeComplexity = async () => {
     if (!code.trim()) return
 
     setIsAnalyzing(true)
+    setError(null)
+    setResult(null)
+    
+    // Initialize progress tracking
+    const steps: AnalysisProgress[] = [
+      { step: "Parsing C++ code", progress: 0, isComplete: false },
+      { step: "Static analysis", progress: 0, isComplete: false },
+      { step: "Empirical testing", progress: 0, isComplete: false },
+      { step: "Curve fitting", progress: 0, isComplete: false },
+      { step: "Merging results", progress: 0, isComplete: false }
+    ]
+    
+    if (analysisMode === 'quick') {
+      steps.splice(2, 2) // Remove empirical testing and curve fitting for quick mode
+    }
+    
+    setAnalysisProgress([...steps])
 
-    // Simulate analysis delay
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      // Simulate progress updates
+      const updateProgress = (stepIndex: number, progress: number, isComplete: boolean = false) => {
+        setAnalysisProgress(prev => prev.map((step, index) => 
+          index === stepIndex ? { ...step, progress, isComplete } : step
+        ))
+      }
 
-    // Simple pattern matching for demo purposes
-    const analysis = analyzeCodePatterns(code)
-    setResult(analysis)
-    setIsAnalyzing(false)
+      const endpoint = analysisMode === 'comprehensive' ? '/api/analyze' : '/api/quick-analyze'
+      
+      // Start analysis
+      updateProgress(0, 100, true)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      updateProgress(1, 100, true)
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      if (analysisMode === 'comprehensive') {
+        updateProgress(2, 100, true)
+        await new Promise(resolve => setTimeout(resolve, 1200))
+        
+        updateProgress(3, 100, true)
+        await new Promise(resolve => setTimeout(resolve, 600))
+        
+        updateProgress(4, 100, true)
+      } else {
+        updateProgress(2, 100, true)
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code,
+          options: {
+            includeEmpiricalAnalysis: analysisMode === 'comprehensive',
+            enableVisualization: true,
+            detailedReporting: true
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Analysis failed')
+      }
+
+      const analysisResult = await response.json()
+      
+      if (analysisMode === 'quick') {
+        // Transform quick analysis result to match comprehensive format
+        setResult(transformQuickResult(analysisResult))
+      } else {
+        setResult(analysisResult)
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An unknown error occurred')
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  const transformQuickResult = (quickResult: any): ComprehensiveAnalysisResult => {
+    // Transform quick analysis result to match comprehensive analysis structure
+    return {
+      finalComplexity: {
+        timeComplexity: quickResult.result.overallComplexity.timeComplexity,
+        spaceComplexity: quickResult.result.overallComplexity.spaceComplexity,
+        confidence: quickResult.result.confidence,
+        bounds: {
+          lower: quickResult.result.overallComplexity.timeComplexity,
+          upper: quickResult.result.overallComplexity.timeComplexity
+        }
+      },
+      analysis: {
+        static: quickResult.result,
+        empirical: { dataPoints: [], bestFitComplexity: 'N/A', rSquared: 0, timeCoefficient: 0, averageTime: 0, inputSizes: [], executionTimes: [], memoryUsages: [] },
+        regression: { bestFit: { complexity: 'N/A', rSquared: 0, coefficient: 0, confidence: 0, standardError: 0, pValue: 1, residuals: [], predictedValues: [] }, allFits: [], recommendation: '', reliability: 'low', dataQuality: { sampleSize: 0, variance: 0, outliers: [], monotonicity: 0 } }
+      },
+      agreement: {
+        level: 'high' as const,
+        explanation: 'Static analysis only',
+        consensusReached: true
+      },
+      recommendations: quickResult.result.recommendations,
+      warnings: quickResult.result.warnings,
+      caseAnalysis: {
+        bestCase: quickResult.result.overallComplexity.timeComplexity,
+        averageCase: quickResult.result.overallComplexity.timeComplexity,
+        worstCase: quickResult.result.overallComplexity.timeComplexity,
+        explanation: 'Based on static analysis'
+      },
+      validation: {
+        staticValidation: true,
+        empiricalValidation: false,
+        crossValidation: false,
+        overallReliability: quickResult.result.confidence
+      },
+      metadata: {
+        analysisId: `quick_${Date.now()}`,
+        timestamp: new Date(),
+        processingTime: 0,
+        codeLength: code.length,
+        linesOfCode: code.split('\n').length
+      },
+      visualizationData: {
+        complexityChart: [],
+        performanceChart: [],
+        comparisonChart: []
+      },
+      detailedReport: {
+        executiveSummary: `Quick static analysis completed. Time complexity: ${quickResult.result.overallComplexity.timeComplexity}`,
+        technicalDetails: `Functions: ${quickResult.result.functionAnalysis.length}, Loops: ${quickResult.result.loopAnalysis.length}, Algorithms: ${quickResult.result.algorithmPatterns.length}`,
+        methodologyNotes: 'Static analysis only - no empirical testing performed'
+      }
+    }
+  }
+
+  const exportResults = async (format: 'json' | 'markdown' | 'csv') => {
+    if (!result) return
+
+    try {
+      const response = await fetch('/api/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code,
+          format,
+          options: {
+            includeEmpiricalAnalysis: analysisMode === 'comprehensive',
+            enableVisualization: true,
+            detailedReporting: true
+          }
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Export failed')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `complexity-analysis-${result.metadata.analysisId}.${format}`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      setError('Export failed')
+    }
   }
 
   const analyzeCodePatterns = (code: string): ComplexityResult => {
@@ -388,35 +566,40 @@ export function ComplexityCalculator() {
     return hasHeapify || (hasHeap && hasParentChild)
   }
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "excellent":
-        return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-      case "good":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-      case "fair":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-      case "poor":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
-      case "terrible":
-        return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
-    }
+  const getCategoryColor = (confidence: number) => {
+    if (confidence > 0.9) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+    if (confidence > 0.7) return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+    if (confidence > 0.5) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+    if (confidence > 0.3) return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+    return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+  }
+
+  const getConfidenceLabel = (confidence: number) => {
+    if (confidence > 0.9) return "Excellent"
+    if (confidence > 0.7) return "Good"
+    if (confidence > 0.5) return "Fair"
+    if (confidence > 0.3) return "Poor"
+    return "Uncertain"
   }
 
   const resetCalculator = () => {
     setCode("")
     setResult(null)
+    setError(null)
+    setAnalysisProgress([])
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="w-full max-w-4xl mx-auto space-y-6">
       <Tabs defaultValue="calculator" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="calculator" className="flex items-center gap-2">
             <Calculator className="h-4 w-4" />
             Calculator
+          </TabsTrigger>
+          <TabsTrigger value="analysis" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Analysis
           </TabsTrigger>
           <TabsTrigger value="visualization" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
@@ -435,91 +618,358 @@ export function ComplexityCalculator() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Code className="h-5 w-5" />
-                  Code Input
+                  C++ Code Input
                 </CardTitle>
-                <CardDescription>Paste your algorithm or code snippet below for analysis</CardDescription>
+                <CardDescription>
+                  Paste your C++ algorithm or code snippet below for comprehensive complexity analysis
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Textarea
-                  placeholder="// Enter your code here - try these examples:
+                  placeholder="// Enter your C++ code here - examples:
 
-// Example 1: Nested loops (O(n²))
-for (let i = 0; i < n; i++) {
-  for (let j = 0; j < n; j++) {
-    console.log(i, j);
-  }
+// Example 1: Bubble Sort (O(n²))
+#include <vector>
+#include <algorithm>
+
+void bubbleSort(std::vector<int>& arr) {
+    int n = arr.size();
+    for (int i = 0; i < n-1; i++) {
+        for (int j = 0; j < n-i-1; j++) {
+            if (arr[j] > arr[j+1]) {
+                std::swap(arr[j], arr[j+1]);
+            }
+        }
+    }
 }
 
-// Example 2: Array methods (O(n))
-arr.forEach(item => console.log(item));
-
-// Example 3: Binary search (O(log n))
-function binarySearch(arr, target) {
-  let left = 0, right = arr.length - 1;
-  while (left <= right) {
-    let mid = Math.floor((left + right) / 2);
-    if (arr[mid] === target) return mid;
-    if (arr[mid] < target) left = mid + 1;
-    else right = mid - 1;
-  }
-  return -1;
+// Example 2: Binary Search (O(log n))
+int binarySearch(std::vector<int>& arr, int target) {
+    int left = 0, right = arr.size() - 1;
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+        if (arr[mid] == target) return mid;
+        if (arr[mid] < target) left = mid + 1;
+        else right = mid - 1;
+    }
+    return -1;
 }"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  className="min-h-[200px] font-mono text-sm"
+                  className="min-h-[300px] font-mono text-sm"
                 />
+                
+                {/* Analysis Mode Selection */}
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium">Analysis Mode:</label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={analysisMode === 'quick' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setAnalysisMode('quick')}
+                    >
+                      <Zap className="h-4 w-4 mr-1" />
+                      Quick
+                    </Button>
+                    <Button
+                      variant={analysisMode === 'comprehensive' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setAnalysisMode('comprehensive')}
+                    >
+                      <Activity className="h-4 w-4 mr-1" />
+                      Comprehensive
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Progress Display */}
+                {isAnalyzing && analysisProgress.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Analysis Progress</label>
+                    {analysisProgress.map((step, index) => (
+                      <div key={index} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className={step.isComplete ? "text-green-600" : "text-muted-foreground"}>
+                            {step.isComplete && <CheckCircle className="inline h-3 w-3 mr-1" />}
+                            {step.step}
+                          </span>
+                          <span>{step.progress}%</span>
+                        </div>
+                        <Progress value={step.progress} className="h-1" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                
                 <div className="flex gap-2">
-                  <Button onClick={analyzeComplexity} disabled={!code.trim() || isAnalyzing} className="flex-1">
-                    {isAnalyzing ? "Analyzing..." : "Analyze Complexity"}
+                  <Button 
+                    onClick={analyzeComplexity} 
+                    disabled={!code.trim() || isAnalyzing} 
+                    className="flex-1"
+                  >
+                    {isAnalyzing ? "Analyzing..." : `Analyze Complexity (${analysisMode})`}
                   </Button>
                   <Button variant="outline" onClick={resetCalculator}>
                     Reset
                   </Button>
                 </div>
+                
+                <p className="text-xs text-muted-foreground">
+                  {analysisMode === 'quick' 
+                    ? "Quick mode: Static analysis only - faster results" 
+                    : "Comprehensive mode: Static + empirical analysis - detailed results"
+                  }
+                </p>
               </CardContent>
             </Card>
 
             {/* Results Section */}
             <Card>
               <CardHeader>
-                <CardTitle>Analysis Results</CardTitle>
-                <CardDescription>Big O notation and complexity analysis</CardDescription>
+                <CardTitle className="flex items-center justify-between">
+                  Analysis Results
+                  {result && (
+                    <div className="flex gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => exportResults('json')}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        JSON
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => exportResults('markdown')}
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        Report
+                      </Button>
+                    </div>
+                  )}
+                </CardTitle>
+                <CardDescription>Comprehensive complexity analysis and recommendations</CardDescription>
               </CardHeader>
               <CardContent>
                 {result ? (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
+                    {/* Main Results */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-muted-foreground">Time Complexity</label>
-                        <div className="text-2xl font-mono font-bold text-primary">{result.timeComplexity}</div>
+                        <div className="text-2xl font-mono font-bold text-primary">
+                          {result.finalComplexity.timeComplexity}
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-muted-foreground">Space Complexity</label>
-                        <div className="text-2xl font-mono font-bold text-primary">{result.spaceComplexity}</div>
+                        <div className="text-2xl font-mono font-bold text-primary">
+                          {result.finalComplexity.spaceComplexity}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-muted-foreground">Performance Category</label>
-                      <Badge className={getCategoryColor(result.category)}>
-                        {result.category.charAt(0).toUpperCase() + result.category.slice(1)}
-                      </Badge>
+                    {/* Confidence and Agreement */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-muted-foreground">Confidence Level</label>
+                        <Badge className={getCategoryColor(result.finalComplexity.confidence)}>
+                          {getConfidenceLabel(result.finalComplexity.confidence)} ({(result.finalComplexity.confidence * 100).toFixed(1)}%)
+                        </Badge>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-muted-foreground">Analysis Agreement</label>
+                        <Badge className={result.agreement.level === 'high' ? 'bg-green-100 text-green-800' : 
+                                        result.agreement.level === 'medium' ? 'bg-yellow-100 text-yellow-800' : 
+                                        'bg-orange-100 text-orange-800'}>
+                          {result.agreement.level.toUpperCase()}
+                        </Badge>
+                      </div>
                     </div>
 
+                    {/* Case Analysis */}
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-muted-foreground">Explanation</label>
-                      <p className="text-sm text-foreground leading-relaxed">{result.explanation}</p>
+                      <label className="text-sm font-medium text-muted-foreground">Performance Cases</label>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div>
+                          <span className="font-medium">Best:</span> {result.caseAnalysis.bestCase}
+                        </div>
+                        <div>
+                          <span className="font-medium">Average:</span> {result.caseAnalysis.averageCase}
+                        </div>
+                        <div>
+                          <span className="font-medium">Worst:</span> {result.caseAnalysis.worstCase}
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Algorithm Patterns */}
+                    {result.analysis.static.algorithmPatterns.length > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-muted-foreground">Detected Algorithms</label>
+                        <div className="space-y-1">
+                          {result.analysis.static.algorithmPatterns.slice(0, 3).map((pattern, index) => (
+                            <div key={index} className="text-sm">
+                              <span className="font-medium">{pattern.name}:</span> {pattern.complexity.timeComplexity}
+                              <span className="text-muted-foreground ml-2">
+                                ({(pattern.confidence * 100).toFixed(0)}% confidence)
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Explanation */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-muted-foreground">Analysis Summary</label>
+                      <p className="text-sm text-foreground leading-relaxed">
+                        {result.agreement.explanation} {result.caseAnalysis.explanation}
+                      </p>
+                    </div>
+
+                    {/* Warnings */}
+                    {result.warnings.length > 0 && (
+                      <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                          <div className="space-y-1">
+                            {result.warnings.slice(0, 2).map((warning, index) => (
+                              <div key={index}>{warning}</div>
+                            ))}
+                          </div>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Recommendations */}
+                    {result.recommendations.length > 0 && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-muted-foreground">Recommendations</label>
+                        <div className="space-y-1">
+                          {result.recommendations.slice(0, 3).map((rec, index) => (
+                            <div key={index} className="text-sm text-blue-600 dark:text-blue-400">
+                              • {rec}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     <Code className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Enter your code above and click "Analyze Complexity" to see results</p>
+                    <p>Enter your C++ code above and click "Analyze Complexity" to see detailed results</p>
+                    <p className="text-sm mt-2">
+                      Supports algorithms, loops, recursion, STL containers, and more
+                    </p>
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="analysis" className="space-y-6">
+          {result ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Static Analysis Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Static Analysis</CardTitle>
+                  <CardDescription>Code structure and theoretical complexity</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-2xl font-bold">{result.analysis.static.functionAnalysis.length}</div>
+                        <div className="text-sm text-muted-foreground">Functions</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold">{result.analysis.static.loopAnalysis.length}</div>
+                        <div className="text-sm text-muted-foreground">Loops</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold">{result.analysis.static.algorithmPatterns.length}</div>
+                        <div className="text-sm text-muted-foreground">Algorithms</div>
+                      </div>
+                    </div>
+                    
+                    {result.analysis.static.functionAnalysis.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Function Analysis</h4>
+                        <div className="space-y-2">
+                          {result.analysis.static.functionAnalysis.map((func, index) => (
+                            <div key={index} className="text-sm border rounded p-2">
+                              <div className="font-medium">{func.name}</div>
+                              <div className="text-muted-foreground">
+                                {func.complexity.timeComplexity}
+                                {func.isRecursive && ` (${func.recursionType} recursion)`}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Empirical Analysis Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Empirical Analysis</CardTitle>
+                  <CardDescription>Performance testing and curve fitting</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {analysisMode === 'comprehensive' && result.analysis.empirical.dataPoints.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4 text-center">
+                        <div>
+                          <div className="text-2xl font-bold">{result.analysis.empirical.dataPoints.length}</div>
+                          <div className="text-sm text-muted-foreground">Test Points</div>
+                        </div>
+                        <div>
+                          <div className="text-2xl font-bold">{result.analysis.empirical.rSquared.toFixed(3)}</div>
+                          <div className="text-sm text-muted-foreground">R-squared</div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h4 className="font-semibold mb-2">Best Fit</h4>
+                        <div className="text-sm">
+                          <div>Complexity: {result.analysis.empirical.bestFitComplexity}</div>
+                          <div>Avg Time: {result.analysis.empirical.averageTime.toFixed(3)}ms</div>
+                          <div>Reliability: {result.analysis.regression.reliability.toUpperCase()}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>{analysisMode === 'quick' ? 'Empirical analysis not available in quick mode' : 'No empirical data available'}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="text-center py-8 text-muted-foreground">
+                <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Run an analysis to see detailed results</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="visualization">
@@ -533,3 +983,5 @@ function binarySearch(arr, target) {
     </div>
   )
 }
+
+export default ComplexityCalculator
