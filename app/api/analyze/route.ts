@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { CppComplexityAnalyzer, AnalysisOptions } from '@/lib/cpp-complexity-analyzer';
+import { performAuxiliaryAnalysis, integrateAuxiliaryResults } from '@/lib/enhanced-analyzer';
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,7 +47,13 @@ export async function POST(request: NextRequest) {
     const analyzer = new CppComplexityAnalyzer(code, analysisOptions);
     const result = await analyzer.analyze();
 
-    return NextResponse.json(result);
+    // Perform auxiliary verification for enhanced accuracy
+    const auxiliaryResult = await performAuxiliaryAnalysis(code);
+    
+    // Integrate results seamlessly
+    const finalResult = integrateAuxiliaryResults(result, auxiliaryResult);
+
+    return NextResponse.json(finalResult);
 
   } catch (error) {
     console.error('Analysis error:', error);

@@ -25,3 +25,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+API_SETUP.md
+COMPLEXITY_CALCULATION_AUDIT_REPORT.md
+DEMO_INSTRUCTIONS.md
+DEMO_SETUP.md
+IMPLEMENTATION_NOTES.md

@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { StaticComplexityAnalyzer } from '@/lib/static-analyzer';
+import { performAuxiliaryAnalysis, integrateAuxiliaryResults } from '@/lib/enhanced-analyzer';
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,20 +34,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Run static analysis only
+    // Run static analysis only (but we'll prioritize AI results)
     const analyzer = new StaticComplexityAnalyzer(code);
     const result = analyzer.analyze();
 
-    return NextResponse.json({
-      type: 'quick-analysis',
-      result,
-      metadata: {
-        analysisType: 'static-only',
-        timestamp: new Date().toISOString(),
-        codeLength: code.length,
-        linesOfCode: code.split('\n').length
-      }
-    });
+    // Enhance with auxiliary verification - this will be the primary result
+    const auxiliaryResult = await performAuxiliaryAnalysis(code);
+    const enhancedResult = integrateAuxiliaryResults(result, auxiliaryResult);
+
+    // Return the enhanced result directly (not wrapped)
+    return NextResponse.json(enhancedResult);
 
   } catch (error) {
     console.error('Quick analysis error:', error);

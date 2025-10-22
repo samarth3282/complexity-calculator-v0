@@ -107,12 +107,8 @@ export function ComplexityCalculator() {
 
       const analysisResult = await response.json()
       
-      if (analysisMode === 'quick') {
-        // Transform quick analysis result to match comprehensive format
-        setResult(transformQuickResult(analysisResult))
-      } else {
-        setResult(analysisResult)
-      }
+      // Both modes now return the same format
+      setResult(analysisResult)
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An unknown error occurred')
     } finally {
@@ -642,6 +638,9 @@ void bubbleSort(std::vector<int>& arr) {
         }
     }
 }
+
+
+
 
 // Example 2: Binary Search (O(log n))
 int binarySearch(std::vector<int>& arr, int target) {
