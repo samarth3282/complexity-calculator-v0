@@ -149,7 +149,7 @@ export function integrateAuxiliaryResults(
         functionAnalysis: [],
         loopAnalysis: [],
         algorithmPatterns: [{
-          name: "AI-Detected Algorithm",
+          name: "",
           complexity: {
             timeComplexity: auxiliaryResult.timeComplexity,
             spaceComplexity: auxiliaryResult.spaceComplexity
