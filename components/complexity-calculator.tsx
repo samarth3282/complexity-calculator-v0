@@ -797,7 +797,7 @@ int binarySearch(std::vector<int>& arr, int target) {
                     {/* Case Analysis */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground">Performance Cases</label>
-                      <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div className="grid grid-rows-3 gap-2 text-sm">
                         <div>
                           <span className="font-medium">Best:</span> {result.caseAnalysis.bestCase}
                         </div>
@@ -828,15 +828,15 @@ int binarySearch(std::vector<int>& arr, int target) {
                     )}
 
                     {/* Explanation */}
-                    <div className="space-y-2">
+                    {/* <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground">Analysis Summary</label>
                       <p className="text-sm text-foreground leading-relaxed">
                         {result.agreement.explanation} {result.caseAnalysis.explanation}
                       </p>
-                    </div>
+                    </div> */}
 
                     {/* Warnings */}
-                    {result.warnings.length > 0 && (
+                    {/* {result.warnings.length > 0 && (
                       <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertDescription>
@@ -847,10 +847,10 @@ int binarySearch(std::vector<int>& arr, int target) {
                           </div>
                         </AlertDescription>
                       </Alert>
-                    )}
+                    )} */}
 
                     {/* Recommendations */}
-                    {result.recommendations.length > 0 && (
+                    {/* {result.recommendations.length > 0 && (
                       <div className="space-y-2">
                         <label className="text-sm font-medium text-muted-foreground">Recommendations</label>
                         <div className="space-y-1">
@@ -861,7 +861,7 @@ int binarySearch(std::vector<int>& arr, int target) {
                           ))}
                         </div>
                       </div>
-                    )}
+                    )} */}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">

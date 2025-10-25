@@ -42,12 +42,15 @@ export function ComplexityChart() {
                   }}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="O(1)" stroke="#10b981" strokeWidth={2} />
+                {/* <div className="pt-1000"> */}
+                <Line type="monotone" dataKey="O(1)" stroke="#10b981" strokeWidth={2}/>
                 <Line type="monotone" dataKey="O(log n)" stroke="#3b82f6" strokeWidth={2} />
                 <Line type="monotone" dataKey="O(n)" stroke="#8b5cf6" strokeWidth={2} />
                 <Line type="monotone" dataKey="O(n log n)" stroke="#f59e0b" strokeWidth={2} />
                 <Line type="monotone" dataKey="O(n²)" stroke="#ef4444" strokeWidth={2} />
                 <Line type="monotone" dataKey="O(2ⁿ)" stroke="#dc2626" strokeWidth={2} strokeDasharray="5 5" />
+                {/* </div> */}
+                
               </LineChart>
             </ResponsiveContainer>
           </div>
